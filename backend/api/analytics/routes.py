@@ -33,18 +33,21 @@ def get_filter_params() -> tuple:
     Extrait les paramètres de filtre depuis la requête
     
     Returns:
-        Tuple (sex, view_type) avec None si non spécifié
+        Tuple (sex, view_type, target_pathology) avec None si non spécifié
     """
     sex = request.args.get('sex', None)
     view_type = request.args.get('view_type', None)
+    target_pathology = request.args.get('target_disease', None)  # Nouveau paramètre
     
     # Valider les valeurs
     if sex and sex not in ['Male', 'Female']:
         sex = None
     if view_type and view_type not in ['Frontal', 'Lateral', 'AP', 'PA']:
         view_type = None
+    if target_pathology and target_pathology not in PATHOLOGY_COLUMNS:
+        target_pathology = None
     
-    return sex, view_type
+    return sex, view_type, target_pathology
 
 
 @analytics_bp.route('/stats', methods=['GET'])
@@ -256,7 +259,7 @@ def get_age_pyramid() -> tuple:
         Réponse JSON avec les comptages par tranche d'âge et genre
     """
     try:
-        sex, view_type = get_filter_params()
+        sex, view_type, _ = get_filter_params()
         data = analytics_service.get_age_pyramid(sex=sex, view_type=view_type)
         return success_response(data), 200
     
@@ -278,7 +281,7 @@ def get_age_boxplot() -> tuple:
         Réponse JSON avec min, Q1, médiane, Q3, max par pathologie
     """
     try:
-        sex, view_type = get_filter_params()
+        sex, view_type, _ = get_filter_params()
         data = analytics_service.get_age_boxplot_by_pathology(sex=sex, view_type=view_type)
         return success_response(data), 200
     
@@ -300,7 +303,7 @@ def get_patient_frequency() -> tuple:
         Réponse JSON avec la distribution du nombre d'images par patient
     """
     try:
-        sex, view_type = get_filter_params()
+        sex, view_type, _ = get_filter_params()
         data = analytics_service.get_patient_frequency_histogram(sex=sex, view_type=view_type)
         return success_response(data), 200
     
@@ -326,7 +329,7 @@ def get_prevalence() -> tuple:
         Réponse JSON avec la prévalence de chaque pathologie
     """
     try:
-        sex, view_type = get_filter_params()
+        sex, view_type, _ = get_filter_params()
         data = analytics_service.get_prevalence_bar_chart(sex=sex, view_type=view_type)
         return success_response(data), 200
     
@@ -348,13 +351,73 @@ def get_cooccurrence() -> tuple:
         Réponse JSON avec la matrice de co-occurrence
     """
     try:
-        sex, view_type = get_filter_params()
+        sex, view_type, _ = get_filter_params()
         data = analytics_service.get_cooccurrence_heatmap(sex=sex, view_type=view_type)
         return success_response(data), 200
     
     except Exception as e:
         logger.error(f"Erreur lors du calcul de la co-occurrence : {str(e)}", exc_info=True)
         return error_response(f"Erreur lors du calcul de la co-occurrence : {str(e)}", 500)
+
+
+@analytics_bp.route('/multi-pathologies', methods=['GET'])
+def get_multi_pathologies() -> tuple:
+    """
+    Retourne l'histogramme de sévérité (nombre de pathologies par patient)
+    
+    Query params:
+        sex: Filtre par sexe
+        view_type: Filtre par type de vue
+    
+    Returns:
+        Réponse JSON avec la distribution du nombre de pathologies simultanées
+    """
+    try:
+        sex, view_type, _ = get_filter_params()
+        data = analytics_service.get_multi_pathologies_histogram(sex=sex, view_type=view_type)
+        return success_response(data), 200
+    
+    except Exception as e:
+        logger.error(f"Erreur lors du calcul multi-pathologies : {str(e)}", exc_info=True)
+        return error_response(f"Erreur lors du calcul multi-pathologies : {str(e)}", 500)
+
+
+@analytics_bp.route('/conditional-probabilities', methods=['GET'])
+def get_conditional_probabilities() -> tuple:
+    """
+    Retourne les probabilités conditionnelles P(Y | X) pour une pathologie cible
+    
+    Query params:
+        target_disease: La pathologie de référence (REQUIS)
+        sex: Filtre par sexe
+        view_type: Filtre par type de vue
+    
+    Returns:
+        Réponse JSON avec les comorbidités associées à la pathologie cible
+    """
+    try:
+        # Récupérer le paramètre target_disease
+        target_disease = request.args.get('target_disease', None)
+        
+        if not target_disease:
+            return error_response("Le paramètre 'target_disease' est requis", 400)
+        
+        sex, view_type, _ = get_filter_params()
+        data = analytics_service.get_conditional_probabilities(
+            target_disease=target_disease,
+            sex=sex,
+            view_type=view_type
+        )
+        
+        # Vérifier si une erreur est retournée dans les données
+        if 'error' in data:
+            return error_response(data['error'], 400)
+        
+        return success_response(data), 200
+    
+    except Exception as e:
+        logger.error(f"Erreur lors du calcul des probabilités conditionnelles : {str(e)}", exc_info=True)
+        return error_response(f"Erreur lors du calcul des probabilités conditionnelles : {str(e)}", 500)
 
 
 # =========================================================================
@@ -374,7 +437,7 @@ def get_uncertainty_stacked() -> tuple:
         Réponse JSON avec la proportion positive vs incertaine par pathologie
     """
     try:
-        sex, view_type = get_filter_params()
+        sex, view_type, _ = get_filter_params()
         data = analytics_service.get_uncertainty_stacked_bar(sex=sex, view_type=view_type)
         return success_response(data), 200
     
@@ -396,7 +459,7 @@ def get_uncertainty_treemap() -> tuple:
         Réponse JSON avec la répartition du volume d'incertitude par pathologie
     """
     try:
-        sex, view_type = get_filter_params()
+        sex, view_type, _ = get_filter_params()
         data = analytics_service.get_uncertainty_treemap(sex=sex, view_type=view_type)
         return success_response(data), 200
     
@@ -412,13 +475,14 @@ def get_uncertainty_by_view() -> tuple:
     
     Query params:
         sex: Filtre par sexe
+        target_disease: Filtre par pathologie cible (ex: 'Pneumonia')
     
     Returns:
         Réponse JSON avec l'incertitude par Frontal/Lateral et AP/PA
     """
     try:
-        sex, _ = get_filter_params()
-        data = analytics_service.get_uncertainty_by_view_type(sex=sex)
+        sex, _, target_pathology = get_filter_params()
+        data = analytics_service.get_uncertainty_by_view_type(sex=sex, target_pathology=target_pathology)
         return success_response(data), 200
     
     except Exception as e:
@@ -437,13 +501,14 @@ def get_view_distribution() -> tuple:
     
     Query params:
         sex: Filtre par sexe
+        target_disease: Filtre par pathologie cible (ex: 'Pneumonia')
     
     Returns:
         Réponse JSON avec la distribution Frontal/Lateral et AP/PA
     """
     try:
-        sex, _ = get_filter_params()
-        data = analytics_service.get_view_type_distribution(sex=sex)
+        sex, _, target_pathology = get_filter_params()
+        data = analytics_service.get_view_type_distribution(sex=sex, target_pathology=target_pathology)
         return success_response(data), 200
     
     except Exception as e:
@@ -464,7 +529,7 @@ def get_pathology_devices() -> tuple:
         Réponse JSON avec la comparaison avec/sans devices pour chaque pathologie
     """
     try:
-        sex, view_type = get_filter_params()
+        sex, view_type, _ = get_filter_params()
         data = analytics_service.get_pathology_vs_devices(sex=sex, view_type=view_type)
         return success_response(data), 200
     
