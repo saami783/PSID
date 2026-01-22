@@ -192,7 +192,7 @@ cp .env.example .env
 Le fichier `.env` contient :
 ```env
 FLASK_ENV=development
-FLASK_PORT=5000
+FLASK_PORT=5050
 REACT_PORT=5173
 DATA_PATH=data/train.csv
 VALID_PATH=data/valid.csv
@@ -209,7 +209,7 @@ npm install
 
 2. **Configuration** :
    - L'URL de l'API backend est configurée dans `frontend/src/services/api.js`
-   - Par défaut : `http://localhost:5000`
+   - Par défaut : `http://localhost:5050`
    - Peut être modifiée via la variable d'environnement `VITE_API_URL`
 
 ## ▶️ Lancement
@@ -243,7 +243,7 @@ npm run dev
 
 ### Vérification
 
-1. **Backend** : Ouvrez http://localhost:5000/api/analytics/health
+1. **Backend** : Ouvrez http://localhost:5050/api/analytics/health
    - Devrait retourner : `{"status":"success","data":{"status":"healthy",...}}`
 
 2. **Frontend** : Ouvrez http://localhost:5173
@@ -258,14 +258,14 @@ Vous verrez dans le terminal backend :
 ```
 Chargement du dataset depuis data/train.csv...
 Dataset chargé : 223,414 lignes
-🚀 Démarrage du serveur Flask sur le port 5000
+🚀 Démarrage du serveur Flask sur le port 5050
 ```
 
 ## 🔌 API Endpoints
 
 ### Base URL
 ```
-http://localhost:5000
+http://localhost:5050
 ```
 
 ### Endpoints Disponibles
@@ -459,18 +459,18 @@ Toutes les réponses API suivent le même format. Au lieu de répéter le code p
 - Vérifiez que `data/train.csv` existe
 - Vérifiez le chemin dans `.env` (`DATA_PATH`)
 
-**Problème** : Port 5000 déjà utilisé
+**Problème** : Port 5050 déjà utilisé
 
 **Solution** :
 - Changez `FLASK_PORT` dans `.env`
-- Ou arrêtez le processus utilisant le port 5000
+- Ou arrêtez le processus utilisant le port 5050
 
 ### Frontend ne charge pas les données
 
 **Problème** : Erreur CORS
 
 **Solution** :
-- Vérifiez que le backend tourne sur le port 5000
+- Vérifiez que le backend tourne sur le port 5050
 - Vérifiez `CORS_ORIGINS` dans `.env`
 - Ouvrez la console du navigateur (F12) pour voir les erreurs
 
