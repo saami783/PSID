@@ -121,6 +121,24 @@ export const analyticsAPI = {
     return handleResponse(response);
   },
 
+  /**
+   * Récupère l'histogramme de multi-pathologies (sévérité)
+   * @param {string} queryParams - Query params de filtre
+   */
+  getMultiPathologies: async (queryParams = '') => {
+    const response = await fetch(buildUrl('multi-pathologies', queryParams));
+    return handleResponse(response);
+  },
+
+  /**
+   * Récupère les probabilités conditionnelles pour une pathologie cible
+   * @param {string} queryParams - Query params incluant target_disease
+   */
+  getConditionalProbabilities: async (queryParams = '') => {
+    const response = await fetch(buildUrl('conditional-probabilities', queryParams));
+    return handleResponse(response);
+  },
+
   // =========================================================================
   // AXE 3 : Fiabilité & Bruit (Analyse de l'Incertitude)
   // =========================================================================

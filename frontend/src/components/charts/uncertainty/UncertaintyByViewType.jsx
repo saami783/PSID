@@ -42,16 +42,16 @@ export function UncertaintyByViewType({ data }) {
           <p className="font-semibold text-gray-800 mb-2">Vue {item.view_type}</p>
           <div className="text-sm space-y-1">
             <p className="text-yellow-600">
-              Incertains (-1): <strong>{item.uncertain_count.toLocaleString()}</strong> ({item.uncertain_percent}%)
+              Incertains (-1) : <strong>{item.uncertain_count.toLocaleString()}</strong> ({item.uncertain_percent}%)
             </p>
             <p className="text-green-600">
-              Positifs (1): <strong>{item.positive_count.toLocaleString()}</strong>
+              Positifs (1) : <strong>{item.positive_count.toLocaleString()}</strong>
             </p>
             <p className="text-gray-600">
-              Négatifs (0): <strong>{item.negative_count.toLocaleString()}</strong>
+              Négatifs (0) : <strong>{item.negative_count.toLocaleString()}</strong>
             </p>
             <p className="pt-1 border-t text-gray-500">
-              Total labels: {item.total_labels.toLocaleString()}
+              Total labels : {item.total_labels.toLocaleString()}
             </p>
           </div>
         </div>

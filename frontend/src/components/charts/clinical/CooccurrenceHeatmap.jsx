@@ -84,7 +84,7 @@ export function CooccurrenceHeatmap({ data }) {
             {pathologies[hoveredCell.row]} + {pathologies[hoveredCell.col]}
           </p>
           <p className="text-gray-600">
-            Co-occurrence: <strong>{hoveredCell.value.toLocaleString()}</strong>
+            Co-occurrence : <strong>{hoveredCell.value.toLocaleString()}</strong>
           </p>
         </div>
       )}

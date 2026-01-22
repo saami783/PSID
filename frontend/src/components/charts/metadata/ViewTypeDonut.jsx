@@ -33,10 +33,10 @@ export function ViewTypeDonut({ data }) {
         <div className="bg-white p-3 border rounded shadow-lg">
           <p className="font-semibold text-gray-800">{item.name}</p>
           <p className="text-gray-600">
-            Nombre: <strong>{item.value.toLocaleString()}</strong>
+            Nombre : <strong>{item.value.toLocaleString()}</strong>
           </p>
           <p className="text-blue-600">
-            Pourcentage: <strong>{item.percent}%</strong>
+            Pourcentage : <strong>{item.percent}%</strong>
           </p>
         </div>
       );

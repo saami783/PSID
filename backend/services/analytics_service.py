@@ -95,7 +95,8 @@ class AnalyticsService:
         return self._raw_data
     
     def _apply_filters(self, df: pd.DataFrame, sex: Optional[str] = None, 
-                       view_type: Optional[str] = None) -> pd.DataFrame:
+                       view_type: Optional[str] = None,
+                       target_pathology: Optional[str] = None) -> pd.DataFrame:
         """
         Applique les filtres sur le DataFrame
         
@@ -103,6 +104,7 @@ class AnalyticsService:
             df: DataFrame source
             sex: Filtre par sexe ('Male' ou 'Female')
             view_type: Filtre par type de vue ('Frontal', 'Lateral', 'AP', 'PA')
+            target_pathology: Filtre par pathologie cible (ex: 'Pneumonia')
         
         Returns:
             DataFrame filtré
@@ -118,6 +120,11 @@ class AnalyticsService:
             elif view_type in ['AP', 'PA'] and 'AP/PA' in filtered_df.columns:
                 # Filtrer aussi par AP/PA si spécifié
                 filtered_df = filtered_df[filtered_df['AP/PA'] == view_type]
+        
+        # Nouveau filtre : pathologie cible
+        if target_pathology and target_pathology in filtered_df.columns:
+            # Filtrer sur les patients ayant cette pathologie (valeur = 1.0)
+            filtered_df = filtered_df[filtered_df[target_pathology] == 1.0]
         
         return filtered_df
     
@@ -282,6 +289,125 @@ class AnalyticsService:
         
         return prevalence_data
     
+    def get_multi_pathologies_histogram(self, sex: Optional[str] = None,
+                                         view_type: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Calcule l'histogramme de sévérité (complexité des cas)
+        Compte combien de patients ont 0, 1, 2, 3+ pathologies simultanées
+        
+        Objectif: Montrer la complexité des cas et identifier les comorbidités
+        """
+        df = self._apply_filters(self._get_data(), sex, view_type)
+        
+        # Calculer la somme row-wise des pathologies positives (=1)
+        # Exclure 'No Finding' car c'est l'absence de pathologie
+        pathology_cols_to_count = [col for col in PATHOLOGY_COLUMNS 
+                                    if col != 'No Finding' and col in df.columns]
+        
+        # Somme par ligne : nombre de pathologies par image
+        df['pathology_count'] = df[pathology_cols_to_count].apply(
+            lambda row: int((row == 1.0).sum()), 
+            axis=1
+        )
+        
+        # Grouper par nombre de pathologies
+        count_distribution = df['pathology_count'].value_counts().sort_index()
+        
+        # Préparer les données pour le bar chart
+        bins = []
+        counts = []
+        
+        for num_pathologies, count in count_distribution.items():
+            if num_pathologies >= 5:
+                # Grouper 5+ ensemble
+                label = "5+"
+            else:
+                label = str(num_pathologies)
+            
+            if label in bins:
+                # Additionner si déjà présent (pour le groupe 5+)
+                idx = bins.index(label)
+                counts[idx] += int(count)
+            else:
+                bins.append(label)
+                counts.append(int(count))
+        
+        total_patients = len(df)
+        
+        return {
+            'bins': bins,
+            'counts': counts,
+            'total_patients': total_patients,
+            'mean_pathologies': float(df['pathology_count'].mean()),
+            'median_pathologies': float(df['pathology_count'].median()),
+            'max_pathologies': int(df['pathology_count'].max())
+        }
+    
+    def get_conditional_probabilities(self, target_disease: str,
+                                       sex: Optional[str] = None,
+                                       view_type: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Calcule les probabilités conditionnelles P(Pathologie Y | Pathologie X)
+        
+        Question: "Sachant que le patient a [target_disease], 
+                   quelle est la probabilité qu'il ait aussi les autres ?"
+        
+        Args:
+            target_disease: La pathologie de référence (ex: 'Pneumonia')
+            sex: Filtre par sexe
+            view_type: Filtre par vue
+        
+        Returns:
+            Dictionnaire avec les fréquences conditionnelles
+        """
+        df = self._apply_filters(self._get_data(), sex, view_type)
+        
+        # Validation de la pathologie cible
+        if target_disease not in PATHOLOGY_COLUMNS or target_disease not in df.columns:
+            return {
+                'error': f'Pathologie "{target_disease}" non trouvée',
+                'target_disease': target_disease,
+                'comorbidities': []
+            }
+        
+        # Filtrer sur les patients ayant la pathologie cible
+        patients_with_target = df[df[target_disease] == 1.0]
+        
+        if len(patients_with_target) == 0:
+            return {
+                'target_disease': target_disease,
+                'target_count': 0,
+                'comorbidities': [],
+                'message': f'Aucun patient avec {target_disease} dans le dataset filtré'
+            }
+        
+        # Calculer les fréquences des autres pathologies dans ce sous-ensemble
+        comorbidities = []
+        
+        for pathology in PATHOLOGY_COLUMNS:
+            if pathology == target_disease or pathology not in df.columns:
+                continue
+            
+            # Compter les patients ayant AUSSI cette pathologie
+            has_both = int((patients_with_target[pathology] == 1.0).sum())
+            probability = has_both / len(patients_with_target) * 100
+            
+            comorbidities.append({
+                'pathology': pathology,
+                'count': has_both,
+                'probability_percent': round(probability, 2)
+            })
+        
+        # Trier par probabilité décroissante
+        comorbidities.sort(key=lambda x: x['probability_percent'], reverse=True)
+        
+        return {
+            'target_disease': target_disease,
+            'target_count': int(len(patients_with_target)),
+            'comorbidities': comorbidities,
+            'total_patients_in_dataset': int(len(df))
+        }
+    
     @cache_result
     def get_cooccurrence_heatmap(self, sex: Optional[str] = None,
                                   view_type: Optional[str] = None) -> Dict[str, Any]:
@@ -381,14 +507,29 @@ class AnalyticsService:
         
         return treemap_data
     
-    def get_uncertainty_by_view_type(self, sex: Optional[str] = None) -> Dict[str, Any]:
+    def get_uncertainty_by_view_type(self, sex: Optional[str] = None,
+                                      target_pathology: Optional[str] = None) -> Dict[str, Any]:
         """
         Analyse si certains types de vues (AP, PA, etc.) génèrent plus d'incertitude
+        
+        Args:
+            sex: Filtre par sexe
+            target_pathology: Filtre par pathologie cible (ex: 'Pneumonia')
+        
+        Returns:
+            Dictionnaire avec l'incertitude par Frontal/Lateral et AP/PA
         """
+        # Utiliser _apply_filters pour appliquer tous les filtres
+        # Note: on utilise _get_raw_data() pour conserver les valeurs -1 (incertitude)
         df = self._get_raw_data()
         
+        # Appliquer les filtres manuellement car _apply_filters utilise _get_data() qui transforme -1
         if sex and 'Sex' in df.columns:
             df = df[df['Sex'] == sex]
+        
+        if target_pathology and target_pathology in df.columns:
+            # Filtrer sur les patients ayant cette pathologie (valeur = 1.0)
+            df = df[df[target_pathology] == 1.0]
         
         result = {
             'by_frontal_lateral': [],
@@ -453,15 +594,21 @@ class AnalyticsService:
     # AXE 4 : Métadonnées Techniques
     # =========================================================================
     
-    def get_view_type_distribution(self, sex: Optional[str] = None) -> Dict[str, Any]:
+    def get_view_type_distribution(self, sex: Optional[str] = None,
+                                    target_pathology: Optional[str] = None) -> Dict[str, Any]:
         """
         Calcule la distribution des types de vues
         Pour le donut chart
-        """
-        df = self._get_data()
         
-        if sex and 'Sex' in df.columns:
-            df = df[df['Sex'] == sex]
+        Args:
+            sex: Filtre par sexe
+            target_pathology: Filtre par pathologie cible (ex: 'Pneumonia')
+        
+        Returns:
+            Dictionnaire avec la distribution Frontal/Lateral et AP/PA
+        """
+        # Utiliser _apply_filters pour appliquer tous les filtres (sex + target_pathology)
+        df = self._apply_filters(self._get_data(), sex=sex, target_pathology=target_pathology)
         
         result = {
             'frontal_lateral': [],

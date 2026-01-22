@@ -56,10 +56,10 @@ export function AgePyramid({ data }) {
         <div className="bg-white p-3 border rounded shadow-lg">
           <p className="font-semibold text-gray-800 mb-2">{label} ans</p>
           <p className="text-blue-600">
-            Hommes: {maleValue.toLocaleString()}
+            Hommes : {maleValue.toLocaleString()}
           </p>
           <p className="text-pink-600">
-            Femmes: {femaleValue.toLocaleString()}
+            Femmes : {femaleValue.toLocaleString()}
           </p>
         </div>
       );

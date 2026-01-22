@@ -114,10 +114,10 @@ export function UncertaintyTreemap({ data }) {
         <div className="bg-white p-3 border rounded shadow-lg">
           <p className="font-semibold text-gray-800 mb-2">{item.name}</p>
           <p className="text-yellow-600">
-            Labels incertains: <strong>{item.value.toLocaleString()}</strong>
+            Labels incertains : <strong>{item.value.toLocaleString()}</strong>
           </p>
           <p className="text-gray-600">
-            Pourcentage du bruit: <strong>{item.percent}%</strong>
+            Pourcentage du bruit : <strong>{item.percent}%</strong>
           </p>
         </div>
       );

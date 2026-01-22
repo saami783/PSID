@@ -12,8 +12,9 @@ const FilterContext = createContext(null);
  */
 export function FilterProvider({ children }) {
   const [filters, setFilters] = useState({
-    sex: null,        // 'Male' | 'Female' | null (tous)
-    viewType: null    // 'Frontal' | 'Lateral' | 'AP' | 'PA' | null (tous)
+    sex: null,             // 'Male' | 'Female' | null (tous)
+    viewType: null,        // 'Frontal' | 'Lateral' | 'AP' | 'PA' | null (tous)
+    targetPathology: null  // Pathologie cible pour l'analyse conditionnelle
   });
 
   /**
@@ -32,7 +33,8 @@ export function FilterProvider({ children }) {
   const resetFilters = useCallback(() => {
     setFilters({
       sex: null,
-      viewType: null
+      viewType: null,
+      targetPathology: null
     });
   }, []);
 
@@ -46,12 +48,37 @@ export function FilterProvider({ children }) {
     return params.toString();
   }, [filters]);
 
+  /**
+   * Construit les query params pour l'API de probabilités conditionnelles
+   */
+  const getConditionalQueryParams = useCallback(() => {
+    const params = new URLSearchParams();
+    if (filters.sex) params.append('sex', filters.sex);
+    if (filters.viewType) params.append('view_type', filters.viewType);
+    if (filters.targetPathology) params.append('target_disease', filters.targetPathology);
+    return params.toString();
+  }, [filters]);
+
+  /**
+   * Construit les query params pour les endpoints de l'Axe 4 (inclut targetPathology)
+   * Utilisé pour /view-distribution et /uncertainty-by-view
+   */
+  const getAxe4QueryParams = useCallback(() => {
+    const params = new URLSearchParams();
+    if (filters.sex) params.append('sex', filters.sex);
+    if (filters.viewType) params.append('view_type', filters.viewType);
+    if (filters.targetPathology) params.append('target_disease', filters.targetPathology);
+    return params.toString();
+  }, [filters]);
+
   const value = {
     filters,
     setFilters,
     updateFilter,
     resetFilters,
-    getQueryParams
+    getQueryParams,
+    getConditionalQueryParams,
+    getAxe4QueryParams
   };
 
   return (

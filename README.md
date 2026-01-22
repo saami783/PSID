@@ -689,6 +689,28 @@ Les endpoints retournent des **données structurées en JSON**, pas des images :
 - ✅ Flexibilité : Même données peuvent être visualisées différemment
 - ✅ Filtrage : Les filtres sont appliqués côté backend avant calcul
 
+## 🎉 Nouveautés Version 2.0 (Janvier 2025)
+
+### Architecture UX Stricte
+- ✅ **GlobalFilterBar** centralisée (sticky top)
+- ✅ **3 menus déroulants** : Sexe, Vue, **Focus Pathologie**
+- ✅ **Philosophie déterministe** : Aucune interaction de filtrage sur les graphiques
+
+### Nouveaux Graphiques Cliniques (Axe 2)
+- ✅ **Graphique 6** : Multi-Pathologies (Sévérité) - Histogramme des comorbidités
+- ✅ **Graphique 7** : Probabilités Conditionnelles - Analyse P(Y|X) dynamique
+
+### Statistiques
+- **12 visualisations** interactives (vs 10 avant)
+- **16 endpoints API** (vs 14 avant)
+- **3 filtres globaux** : Sexe, Vue, Pathologie cible
+
+### Documentation Enrichie
+- 📄 **PLAN_DEVELOPPEMENT_ANALYTICS.md** : Architecture détaillée
+- 📄 **TEST_VALIDATION_ANALYTICS.md** : Checklist de test complète
+- 📄 **DEMARRAGE_RAPIDE.md** : Guide de démarrage en 3 minutes
+- 📄 **RESUME_IMPLEMENTATION.md** : Vue d'ensemble de l'implémentation
+
 ## 📝 Notes Importantes
 
 - ⚠️ Le dataset `data/` (11 Go) est **exclu du git** via `.gitignore`

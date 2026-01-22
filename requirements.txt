@@ -1,5 +1,5 @@
 Flask==3.0.0
 Flask-CORS==4.0.0
-pandas==2.2.2
+pandas>=2.2.2  # Version flexible pour compatibilité Windows (wheel précompilé)
 python-dotenv==1.0.0
 typing-extensions==4.9.0

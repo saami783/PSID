@@ -47,10 +47,10 @@ export function PatientFrequencyHistogram({ data }) {
             {item.bin} image{item.bin !== '1' ? 's' : ''} par patient
           </p>
           <p className="text-gray-600">
-            Nombre de patients: <strong>{item.count.toLocaleString()}</strong>
+            Nombre de patients : <strong>{item.count.toLocaleString()}</strong>
           </p>
           <p className="text-gray-600">
-            Pourcentage: <strong>{item.percent}%</strong>
+            Pourcentage : <strong>{item.percent}%</strong>
           </p>
         </div>
       );
