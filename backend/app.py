@@ -33,7 +33,7 @@ def create_app() -> Flask:
     
     # Configuration depuis les variables d'environnement
     app.config['FLASK_ENV'] = os.getenv('FLASK_ENV', 'development')
-    app.config['FLASK_PORT'] = int(os.getenv('FLASK_PORT', 5000))
+    app.config['FLASK_PORT'] = int(os.getenv('FLASK_PORT', 5050))
     
     # Configuration CORS
     cors_origins = os.getenv('CORS_ORIGINS', 'http://localhost:5173').split(',')

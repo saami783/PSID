@@ -7,7 +7,7 @@ import sys
 
 def test_backend():
     """Test les endpoints du backend"""
-    base_url = "http://localhost:5000"
+    base_url = "http://localhost:5050"
     
     print("=" * 60)
     print("Test du Backend Flask")

@@ -25,5 +25,5 @@ PATHOLOGY_COLUMNS: List[str] = [
 # Configuration par défaut
 DEFAULT_DATA_PATH = 'data/train.csv'
 DEFAULT_VALID_PATH = 'data/valid.csv'
-DEFAULT_FLASK_PORT = 5000
+DEFAULT_FLASK_PORT = 5050
 DEFAULT_REACT_PORT = 5173

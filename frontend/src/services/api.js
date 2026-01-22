@@ -3,7 +3,7 @@
  * Découple la logique réseau de la logique métier des composants
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5050';
 
 /**
  * Fonction utilitaire pour gérer les réponses API
