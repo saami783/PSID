@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 
 from backend.api.analytics.routes import analytics_bp
 from backend.utils.response import error_response
+from backend.api.inference.routes import inference_bp
 
 # Charger les variables d'environnement
 load_dotenv()
@@ -41,6 +42,7 @@ def create_app() -> Flask:
     
     # Enregistrement des Blueprints
     app.register_blueprint(analytics_bp)
+    app.register_blueprint(inference_bp)
     
     # Route racine
     @app.route('/', methods=['GET'])
@@ -51,25 +53,25 @@ def create_app() -> Flask:
             'message': 'PSID Medical Analytics API',
             'version': '2.0.0',
             'endpoints': {
+                # Analytics
                 'health': '/api/analytics/health',
                 'stats': '/api/analytics/stats',
                 'demographics': '/api/analytics/demographics',
                 'pathologies': '/api/analytics/pathologies',
                 'correlation': '/api/analytics/correlation',
-                # AXE 1 : Démographie
                 'age_pyramid': '/api/analytics/age-pyramid',
                 'age_boxplot': '/api/analytics/age-boxplot',
                 'patient_frequency': '/api/analytics/patient-frequency',
-                # AXE 2 : Clinique
                 'prevalence': '/api/analytics/prevalence',
                 'cooccurrence': '/api/analytics/cooccurrence',
-                # AXE 3 : Incertitude
                 'uncertainty_stacked': '/api/analytics/uncertainty-stacked',
                 'uncertainty_treemap': '/api/analytics/uncertainty-treemap',
                 'uncertainty_by_view': '/api/analytics/uncertainty-by-view',
-                # AXE 4 : Métadonnées
                 'view_distribution': '/api/analytics/view-distribution',
-                'pathology_devices': '/api/analytics/pathology-devices'
+                'pathology_devices': '/api/analytics/pathology-devices',
+                # Inference
+                'model_health': '/api/inference/health',
+                'predict': '/api/inference/predict'
             }
         }), 200
     

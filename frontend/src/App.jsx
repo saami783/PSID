@@ -4,6 +4,7 @@
  */
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Home from './pages/Home';
+import InferencePage from './pages/Inference';
 import { AnalyticsDashboard } from './features/analytics/AnalyticsDashboard';
 
 function App() {
@@ -12,6 +13,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/analytics" element={<AnalyticsDashboard />} />
+        <Route path="/inference" element={<InferencePage />} />
       </Routes>
     </Router>
   );

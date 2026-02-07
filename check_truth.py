@@ -1,36 +1,54 @@
 import pandas as pd
 import os
 
-# Charge le fichier de validation
-df = pd.read_csv("data/valid.csv")
+# CONFIGURATION
+IMAGE_PATH = "patient64632/study1/view1_frontal.jpg"  # L'image que tu testes
+CSV_PATH = "data/valid.csv"
 
-# Le patient que tu as testé
-image_path = "patient64632/study1/view1_frontal.jpg"
+# Les 5 cibles de ton modèle
+MODEL_TARGETS = ['Atelectasis', 'Cardiomegaly', 'Consolidation', 'Edema', 'Pleural Effusion']
 
-# On cherche la ligne correspondante dans le CSV
-# (On cherche une correspondance partielle car le CSV contient "CheXpert-v1.0-small/...")
-row = df[df['Path'].str.contains(image_path)]
 
-if not row.empty:
-    print(f"--- VÉRITÉ TERRAIN (Radiologue) pour {image_path} ---")
+def check_truth():
+    if not os.path.exists(CSV_PATH):
+        print("Fichier valid.csv introuvable.")
+        return
 
-    # On affiche les colonnes qui valent 1.0 (Présent)
-    target_cols = [
+    df = pd.read_csv(CSV_PATH)
+    # Recherche partielle dans le chemin
+    row = df[df['Path'].str.contains(IMAGE_PATH, regex=False)]
+
+    if row.empty:
+        print(f"❌ Patient {IMAGE_PATH} non trouvé dans le CSV de validation.")
+        return
+
+    print(f"--- VÉRITÉ TERRAIN (Radiologue) ---")
+    print(f"Patient : {IMAGE_PATH}")
+
+    # On regarde toutes les colonnes possibles
+    all_cols = [
         'No Finding', 'Enlarged Cardiomediastinum', 'Cardiomegaly', 'Lung Opacity',
         'Lung Lesion', 'Edema', 'Consolidation', 'Pneumonia', 'Atelectasis',
         'Pneumothorax', 'Pleural Effusion', 'Pleural Other', 'Fracture', 'Support Devices'
     ]
 
-    found_something = False
-    for col in target_cols:
+    found = False
+    for col in all_cols:
         val = row.iloc[0][col]
-        if val == 1.0:
-            print(f"✅ {col} : PRÉSENT (1.0)")
-            found_something = True
-        elif val == -1.0:
-            print(f"❓ {col} : INCERTAIN (-1.0)")
 
-    if not found_something:
-        print("Rien de signalé (Tout est à 0 ou vide)")
-else:
-    print("Patient non trouvé dans le CSV.")
+        # Est-ce une maladie ciblée par ton IA ?
+        is_target = "🎯" if col in MODEL_TARGETS else "  "
+
+        if val == 1.0:
+            print(f"{is_target} ✅ {col:<25} : PRÉSENT")
+            found = True
+        elif val == -1.0:
+            print(f"{is_target} ❓ {col:<25} : INCERTAIN")
+            found = True
+
+    if not found:
+        print("Rien de signalé (Patient sain ou données manquantes).")
+
+
+if __name__ == "__main__":
+    check_truth()
