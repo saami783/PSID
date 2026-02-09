@@ -21,6 +21,7 @@ if not csv_path.exists():
 
 print(f"✓ Fichier CSV trouvé: {csv_path}")
 print(f"✓ Taille: {csv_path.stat().st_size / (1024*1024):.2f} MB")
+print("ℹ️  Ce backend ne gère plus l'inférence; utilisez Gradio via http://127.0.0.1:7860/ pour les prédictions.")
 
 # Importer et lancer l'app
 from backend.app import create_app

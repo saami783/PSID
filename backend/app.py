@@ -10,7 +10,6 @@ from dotenv import load_dotenv
 
 from backend.api.analytics.routes import analytics_bp
 from backend.utils.response import error_response
-from backend.api.inference.routes import inference_bp
 
 # Charger les variables d'environnement
 load_dotenv()
@@ -42,7 +41,6 @@ def create_app() -> Flask:
     
     # Enregistrement des Blueprints
     app.register_blueprint(analytics_bp)
-    app.register_blueprint(inference_bp)
     
     # Route racine
     @app.route('/', methods=['GET'])
@@ -69,10 +67,8 @@ def create_app() -> Flask:
                 'uncertainty_by_view': '/api/analytics/uncertainty-by-view',
                 'view_distribution': '/api/analytics/view-distribution',
                 'pathology_devices': '/api/analytics/pathology-devices',
-                # Inference
-                'model_health': '/api/inference/health',
-                'predict': '/api/inference/predict'
-            }
+            },
+            'ai_interface_url': 'http://127.0.0.1:7860/'
         }), 200
     
     # Global Error Handler
