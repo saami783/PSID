@@ -166,3 +166,5 @@ cython_debug/
 /1/
 /data/
 !/data/
+/models/
+/data/

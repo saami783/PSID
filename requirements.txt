@@ -3,3 +3,16 @@ Flask-CORS==4.0.0
 pandas>=2.2.2  # Version flexible pour compatibilité Windows (wheel précompilé)
 python-dotenv==1.0.0
 typing-extensions==4.9.0
+os
+pandas
+numpy
+torch
+torch.nn
+torch.optim
+torch.utils.data
+torchvision
+pathlib
+sklearn.metrics
+PIL
+tqdm
+gradio
