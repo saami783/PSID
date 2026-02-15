@@ -1,9 +1,13 @@
 import gradio as gr
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from torchvision import transforms, models
 from PIL import Image
 import os
+import numpy as np
+import cv2
+import types  # Pour le patch anti-crash
 
 # --- CONFIGURATION ---
 MODEL_LUNGS_PATH = "model_lungs_epoch_8.pth"
@@ -33,10 +37,24 @@ def get_device():
 device = get_device()
 
 
+# --- PATCH ANTI-CRASH (OBLIGATOIRE POUR GRAD-CAM) ---
+def safe_densenet_forward(self, x):
+    features = self.features(x)
+    out = F.relu(features, inplace=False)  # Le secret est ici (False)
+    out = F.adaptive_avg_pool2d(out, (1, 1))
+    out = torch.flatten(out, 1)
+    out = self.classifier(out)
+    return out
+
+
 def load_model(path, num_classes):
     if not os.path.exists(path): return None
     model = models.densenet121(weights=None)
     model.classifier = nn.Linear(1024, num_classes)
+
+    # Application du patch
+    model.forward = types.MethodType(safe_densenet_forward, model)
+
     try:
         state_dict = torch.load(path, map_location=device)
         model.load_state_dict(state_dict)
@@ -50,7 +68,51 @@ def load_model(path, num_classes):
 lung_model = load_model(MODEL_LUNGS_PATH, 4)
 cardio_model = load_model(MODEL_CARDIO_PATH, 1)
 
-# --- CSS MODERNE & ÉPURÉ (Style SaaS) ---
+
+# --- MOTEUR GRAD-CAM (Pour la couleur) ---
+class GradCAM:
+    def __init__(self, model, target_layer):
+        self.model = model
+        self.target_layer = target_layer
+        self.gradients = None
+        self.activations = None
+        self.target_layer.register_forward_hook(self.save_activation)
+        self.target_layer.register_full_backward_hook(self.save_gradient)
+
+    def save_activation(self, module, input, output):
+        self.activations = output
+
+    def save_gradient(self, module, grad_input, grad_output):
+        self.gradients = grad_output[0]
+
+    def __call__(self, x, class_idx=None):
+        output = self.model(x)
+        if class_idx is None: class_idx = torch.argmax(output)
+        self.model.zero_grad()
+        output[0][class_idx].backward()
+
+        gradients = self.gradients[0]
+        activations = self.activations[0]
+        weights = torch.mean(gradients, dim=(1, 2))
+        heatmap = torch.zeros_like(activations[0])
+        for i, w in enumerate(weights): heatmap += w * activations[i]
+
+        heatmap = F.relu(heatmap)
+        if torch.max(heatmap) > 0: heatmap /= torch.max(heatmap)
+        return heatmap.cpu().detach().numpy()
+
+
+def overlay_heatmap(heatmap, original_image):
+    heatmap = cv2.resize(heatmap, (original_image.width, original_image.height))
+    heatmap = np.uint8(255 * heatmap)
+    heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
+    original_np = np.array(original_image)
+    if len(original_np.shape) == 2: original_np = cv2.cvtColor(original_np, cv2.COLOR_GRAY2RGB)
+    superimposed = cv2.addWeighted(heatmap, 0.4, original_np, 0.6, 0)
+    return Image.fromarray(cv2.cvtColor(superimposed, cv2.COLOR_BGR2RGB))
+
+
+# --- CSS EXACTEMENT COMME TU VEUX ---
 modern_css = """
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap');
 
@@ -182,7 +244,7 @@ button.primary-btn:hover { transform: translateY(-1px); }
 
 # --- LOGIQUE D'ANALYSE ---
 def predict(image):
-    if image is None: return "Veuillez charger une image."
+    if image is None: return None, "Veuillez charger une image."
 
     transform = transforms.Compose([
         transforms.Resize((320, 320)),
@@ -191,43 +253,60 @@ def predict(image):
     ])
 
     img_t = transform(image).unsqueeze(0).to(device)
+    img_t.requires_grad = True  # Important pour GradCAM
+
     results = {}
+    heatmap_final = None  # L'image qui sera affichée (soit originale, soit thermique)
 
-    if lung_model:
-        with torch.no_grad():
-            preds = torch.sigmoid(lung_model(img_t)).cpu().numpy()[0]
-            for i, label in enumerate(LUNG_TARGETS): results[label] = preds[i]
+    # 1. Cardio + GradCAM
     if cardio_model:
-        with torch.no_grad():
-            pred = torch.sigmoid(cardio_model(img_t)).cpu().numpy()[0][0]
-            results[CARDIO_TARGET[0]] = pred
+        grad_cam = GradCAM(cardio_model, cardio_model.features[-1])
+        pred_logits = cardio_model(img_t)
+        pred = torch.sigmoid(pred_logits).cpu().detach().numpy()[0][0]  # detach pour éviter bug
+        results[CARDIO_TARGET[0]] = pred
 
-    # Génération HTML Épuré
+        if pred > THRESHOLDS['Cardiomegaly']:
+            heatmap_map = grad_cam(img_t, class_idx=0)
+            heatmap_final = overlay_heatmap(heatmap_map, image)
+
+    # 2. Poumons + GradCAM
+    dominant_lung = None
+    max_prob = 0
+    if lung_model:
+        grad_cam_lung = GradCAM(lung_model, lung_model.features[-1])
+        preds = torch.sigmoid(lung_model(img_t)).cpu().detach().numpy()[0]
+
+        for i, label in enumerate(LUNG_TARGETS):
+            results[label] = preds[i]
+            if preds[i] > max_prob and preds[i] > THRESHOLDS[label]:
+                max_prob = preds[i]
+                dominant_lung = i
+
+        # Si pas encore de heatmap cardio, on regarde les poumons
+        if dominant_lung is not None and heatmap_final is None:
+            img_t.grad = None
+            lung_model.zero_grad()
+            heatmap_map = grad_cam_lung(img_t, class_idx=dominant_lung)
+            heatmap_final = overlay_heatmap(heatmap_map, image)
+
+    # Si rien de détecté, on renvoie l'image originale
+    if heatmap_final is None: heatmap_final = image
+
+    # --- GÉNÉRATION HTML (TON CODE ORIGINAL) ---
     html = '<div class="result-card">'
-
     sorted_res = sorted(results.items(), key=lambda x: x[1], reverse=True)
     any_sick = False
-
-    # Mapping des icônes pour le style
-    icons = {
-        'Cardiomegaly': '❤️',
-        'Pleural Effusion': '💧',
-        'Edema': '🌫️',
-        'Consolidation': '🧱',
-        'Atelectasis': '🫁'
-    }
+    icons = {'Cardiomegaly': '❤️', 'Pleural Effusion': '💧', 'Edema': '🌫️', 'Consolidation': '🧱', 'Atelectasis': '🫁'}
 
     for label, prob in sorted_res:
         th = THRESHOLDS.get(label, 0.5)
         is_sick = prob > th
         if is_sick: any_sick = True
-
-        # Styles conditionnels
         badge_cls = "badge-danger" if is_sick else "badge-safe"
         badge_txt = "DÉTECTÉ" if is_sick else "NORMAL"
-        bar_color = "#ef4444" if is_sick else "#22c55e"  # Rouge vs Vert vif
+        bar_color = "#ef4444" if is_sick else "#22c55e"
         icon = icons.get(label, '⚕️')
-        bg_icon = "#fee2e2" if is_sick else "#dcfce7"  # Fond icone
+        bg_icon = "#fee2e2" if is_sick else "#dcfce7"
 
         html += f"""
         <div class="pathology-row">
@@ -238,7 +317,6 @@ def predict(image):
                     <div class="threshold-info">Seuil: {th * 100:.0f}%</div>
                 </div>
             </div>
-
             <div style="display:flex; align-items:center; gap:15px;">
                 <div style="text-align:right;">
                     <span style="font-weight:700; color:#e2e8f0;">{prob * 100:.1f}%</span>
@@ -251,32 +329,24 @@ def predict(image):
         </div>
         """
 
-    # Résumé final propre
     if any_sick:
-        html += """
-        <div class="summary-banner summary-danger">
-            ⚠️ Anomalies détectées. Une vérification radiologique est nécessaire.
-        </div>
-        """
+        html += '<div class="summary-banner summary-danger">⚠️ Anomalies détectées. Visualisation ci-dessus.</div>'
     else:
-        html += """
-        <div class="summary-banner summary-safe">
-            ✅ Analyse Négative. Aucun signe pathologique détecté.
-        </div>
-        """
+        html += '<div class="summary-banner summary-safe">✅ Analyse Négative. Aucun signe pathologique.</div>'
 
-    html += '</div>'  # Fin card
-    return html
+    html += '</div>'
+
+    return heatmap_final, html  # On renvoie l'image ET le HTML
 
 
 # --- INTERFACE ---
-with gr.Blocks(css=modern_css, title="MedAI Clean") as demo:
+with gr.Blocks(title="DeepCheX") as demo:
     gr.HTML("""
         <div class="hero-card">
             <div>
                 <div class="eyebrow">Analyse thoracique assistée</div>
-                <div class="hero-title">MedAI Diagnostics</div>
-                <p class="hero-lead">Glissez-déposez une radiographie (ou cliquez pour importer) et obtenez une lecture automatique des pathologies pulmonaires et cardiaques. Le drag & drop préserve la qualité native et accélère la prise en charge.</p>
+                <div class="hero-title">DeepCheX Diagnostics</div>
+                <p class="hero-lead">Glissez-déposez une radiographie (ou cliquez pour importer) et obtenez une lecture automatique des pathologies pulmonaires et cardiaques.</p>
                 <div class="pill-row">
                     <div class="pill">Prétraitement optimisé pour radios</div>
                     <div class="pill">Score transparent par pathologie</div>
@@ -284,9 +354,9 @@ with gr.Blocks(css=modern_css, title="MedAI Clean") as demo:
                 </div>
             </div>
             <div class="hero-steps">
-                <div class="hero-step"><span>1</span> Déposez la radio directement dans la zone d'upload (drag & drop).</div>
-                <div class="hero-step"><span>2</span> Le modèle conserve la résolution et les contrastes sans compression superflue.</div>
-                <div class="hero-step"><span>3</span> Les probabilités par pathologie apparaissent instantanément.</div>
+                <div class="hero-step"><span>1</span> Déposez la radio directement dans la zone d'upload.</div>
+                <div class="hero-step"><span>2</span> Le modèle analyse textures et géométrie.</div>
+                <div class="hero-step"><span>3</span> Visualisez la zone pathologique en couleur.</div>
             </div>
         </div>
     """)
@@ -296,40 +366,25 @@ with gr.Blocks(css=modern_css, title="MedAI Clean") as demo:
             gr.HTML("""
                 <div class="panel">
                     <div class="section-title">Charger une radiographie</div>
-                    <p class="muted">Le glisser-déposer est recommandé : il évite les manipulations intermédiaires, réduit le risque de compression et garde les métadonnées intactes pour une lecture fidèle.</p>
+                    <p class="muted">Le glisser-déposer est recommandé.</p>
                 </div>
             """)
-            input_image = gr.Image(
-                type="pil",
-                label="",
-                height=380,
-                show_label=False,
-                elem_classes=["upload-zone"]
-            )
+            input_image = gr.Image(type="pil", label="", height=380, show_label=False, elem_classes=["upload-zone"])
             analyze_btn = gr.Button("Analyser la radio", elem_classes=["primary-btn"])
-            gr.HTML("""
-                <div class="drag-note">
-                    <strong>Pourquoi utiliser le drag & drop ?</strong><br/>
-                    - Import direct depuis le PACS ou votre explorateur, sans conversion.<br/>
-                    - Préserve la finesse des contrastes, cruciale pour détecter les opacités.<br/>
-                    - Gain de temps : un geste et l'analyse démarre.
-                </div>
-            """)
+            gr.HTML(
+                """<div class="drag-note"><strong>Info :</strong> L'analyse thermique (Grad-CAM) s'active automatiquement si une pathologie est détectée.</div>""")
 
         with gr.Column(scale=5):
-            output = gr.HTML(
+            # C'est ICI qu'on ajoute l'image sans casser le design
+            gradcam_output = gr.Image(label="Visualisation Thermique", type="pil", interactive=False, height=300)
+
+            output_html = gr.HTML(
                 label=None,
                 elem_classes=["result-wrapper"],
-                value="""
-                    <div class="result-card">
-                        <div class="result-placeholder">
-                            Déposez une radiographie pour générer instantanément le score des pathologies clés (atélectasie, épanchement pleural, œdème, cardiomégalie...).
-                        </div>
-                    </div>
-                """
+                value="""<div class="result-card"><div class="result-placeholder">En attente d'une radio...</div></div>"""
             )
 
-    analyze_btn.click(fn=predict, inputs=input_image, outputs=output)
+    analyze_btn.click(fn=predict, inputs=input_image, outputs=[gradcam_output, output_html])
 
 if __name__ == "__main__":
-    demo.launch()
+    demo.launch(css=modern_css)
