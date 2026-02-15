@@ -165,8 +165,8 @@ cython_debug/
 
 /1/
 /data/
-!/data/
 /models/
 /data/
-/data/
 /models/
+data/
+*.pth
