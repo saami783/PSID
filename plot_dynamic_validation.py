@@ -78,7 +78,7 @@ class AuditDataset(Dataset):
 
 # --- MOTEUR D'INFÉRENCE ---
 def compute_predictions():
-    print("🚀 Démarrage de l'inférence sur le jeu de validation...")
+    print("Démarrage de l'inférence sur le jeu de validation...")
 
     # 1. Charger Modèles
     m_cardio = models.densenet121(weights=None)
@@ -86,7 +86,7 @@ def compute_predictions():
     if os.path.exists(MODEL_CARDIO):
         m_cardio.load_state_dict(torch.load(MODEL_CARDIO, map_location=device))
         m_cardio.to(device).eval()
-        print("✅ Modèle Cardio chargé.")
+        print("Modèle Cardio chargé.")
     else:
         m_cardio = None
 
@@ -95,7 +95,7 @@ def compute_predictions():
     if os.path.exists(MODEL_LUNGS):
         m_lungs.load_state_dict(torch.load(MODEL_LUNGS, map_location=device))
         m_lungs.to(device).eval()
-        print("✅ Modèle Poumons chargé.")
+        print("Modèle Poumons chargé.")
     else:
         m_lungs = None
 
@@ -128,7 +128,6 @@ def compute_predictions():
     return results
 
 
-# --- VISUALISATION ---
 def plot_results():
     data = compute_predictions()
 
@@ -163,7 +162,7 @@ def plot_results():
         plt.xticks([0.5, 1.5], ['Sain', 'Malade'])
         plt.yticks([0.5, 1.5], ['Sain', 'Malade'])
         plt.savefig('graph_dynamic_cm_cardio.png', dpi=300)
-        print("✅ Graphiques Cardio générés.")
+        print("Graphiques Cardio générés.")
 
     # === 2. LUNGS : CONFUSION MATRICES ===
     if data['lungs_true']:
@@ -192,7 +191,7 @@ def plot_results():
         plt.suptitle(f"Matrices de Confusion : Pathologies Pulmonaires (Seuil {TH_LUNGS})", fontsize=16, y=1.05)
         plt.tight_layout()
         plt.savefig('graph_dynamic_cm_lungs.png', dpi=300)
-        print("✅ Graphiques Poumons générés.")
+        print("Graphiques Poumons générés.")
 
 
 if __name__ == "__main__":

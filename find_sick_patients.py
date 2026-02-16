@@ -1,14 +1,14 @@
 import pandas as pd
 import os
 
-# Configuration
+# ce script permet de trouver des exemples de patients malades dans le dataset de validation
 CSV_PATH = "data/valid.csv"
 TARGETS = ['Atelectasis', 'Consolidation', 'Edema', 'Pleural Effusion', 'Cardiomegaly']
 
 
 def find_sick():
     if not os.path.exists(CSV_PATH):
-        print("❌ Fichier csv introuvable.")
+        print("Fichier csv introuvable.")
         return
 
     print("🔍 Recherche de patients malades dans le dataset de validation...\n")
@@ -25,7 +25,7 @@ def find_sick():
 
     # Pour chaque maladie, on cherche 3 exemples positifs (1.0)
     for disease in TARGETS:
-        print(f"🦠 EXEMPLES POUR : {disease.upper()}")
+        print(f"EXEMPLES POUR : {disease.upper()}")
         print("-" * 50)
 
         # On cherche ceux qui ont 1.0 (Malade confirmé)

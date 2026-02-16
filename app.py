@@ -7,9 +7,8 @@ from PIL import Image
 import os
 import numpy as np
 import cv2
-import types  # Pour le patch anti-crash
+import types
 
-# --- CONFIGURATION ---
 MODEL_LUNGS_PATH = "model_lungs_epoch_8.pth"
 MODEL_CARDIO_PATH = "best_cardio_model.pth"
 
@@ -25,7 +24,6 @@ LUNG_TARGETS = ['Atelectasis', 'Consolidation', 'Edema', 'Pleural Effusion']
 CARDIO_TARGET = ['Cardiomegaly']
 
 
-# --- SETUP TECHNIQUE ---
 def get_device():
     if torch.backends.mps.is_available():
         return torch.device("mps")
@@ -37,10 +35,9 @@ def get_device():
 device = get_device()
 
 
-# --- PATCH ANTI-CRASH (OBLIGATOIRE POUR GRAD-CAM) ---
 def safe_densenet_forward(self, x):
     features = self.features(x)
-    out = F.relu(features, inplace=False)  # Le secret est ici (False)
+    out = F.relu(features, inplace=False)
     out = F.adaptive_avg_pool2d(out, (1, 1))
     out = torch.flatten(out, 1)
     out = self.classifier(out)
@@ -52,7 +49,6 @@ def load_model(path, num_classes):
     model = models.densenet121(weights=None)
     model.classifier = nn.Linear(1024, num_classes)
 
-    # Application du patch
     model.forward = types.MethodType(safe_densenet_forward, model)
 
     try:
@@ -69,7 +65,6 @@ lung_model = load_model(MODEL_LUNGS_PATH, 4)
 cardio_model = load_model(MODEL_CARDIO_PATH, 1)
 
 
-# --- MOTEUR GRAD-CAM (Pour la couleur) ---
 class GradCAM:
     def __init__(self, model, target_layer):
         self.model = model
@@ -112,7 +107,6 @@ def overlay_heatmap(heatmap, original_image):
     return Image.fromarray(cv2.cvtColor(superimposed, cv2.COLOR_BGR2RGB))
 
 
-# --- CSS EXACTEMENT COMME TU VEUX ---
 modern_css = """
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap');
 
@@ -242,7 +236,6 @@ button.primary-btn:hover { transform: translateY(-1px); }
 """
 
 
-# --- LOGIQUE D'ANALYSE ---
 def predict(image):
     if image is None: return None, "Veuillez charger une image."
 
@@ -253,16 +246,16 @@ def predict(image):
     ])
 
     img_t = transform(image).unsqueeze(0).to(device)
-    img_t.requires_grad = True  # Important pour GradCAM
+    img_t.requires_grad = True
 
     results = {}
-    heatmap_final = None  # L'image qui sera affichée (soit originale, soit thermique)
+    heatmap_final = None
 
     # 1. Cardio + GradCAM
     if cardio_model:
         grad_cam = GradCAM(cardio_model, cardio_model.features[-1])
         pred_logits = cardio_model(img_t)
-        pred = torch.sigmoid(pred_logits).cpu().detach().numpy()[0][0]  # detach pour éviter bug
+        pred = torch.sigmoid(pred_logits).cpu().detach().numpy()[0][0]
         results[CARDIO_TARGET[0]] = pred
 
         if pred > THRESHOLDS['Cardiomegaly']:
@@ -292,7 +285,6 @@ def predict(image):
     # Si rien de détecté, on renvoie l'image originale
     if heatmap_final is None: heatmap_final = image
 
-    # --- GÉNÉRATION HTML (TON CODE ORIGINAL) ---
     html = '<div class="result-card">'
     sorted_res = sorted(results.items(), key=lambda x: x[1], reverse=True)
     any_sick = False
@@ -336,10 +328,9 @@ def predict(image):
 
     html += '</div>'
 
-    return heatmap_final, html  # On renvoie l'image ET le HTML
+    return heatmap_final, html
 
 
-# --- INTERFACE ---
 with gr.Blocks(title="DeepCheX") as demo:
     gr.HTML("""
         <div class="hero-card">
@@ -375,7 +366,6 @@ with gr.Blocks(title="DeepCheX") as demo:
                 """<div class="drag-note"><strong>Info :</strong> L'analyse thermique (Grad-CAM) s'active automatiquement si une pathologie est détectée.</div>""")
 
         with gr.Column(scale=5):
-            # C'est ICI qu'on ajoute l'image sans casser le design
             gradcam_output = gr.Image(label="Visualisation Thermique", type="pil", interactive=False, height=300)
 
             output_html = gr.HTML(

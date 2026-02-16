@@ -9,14 +9,11 @@ from sklearn.metrics import roc_auc_score
 from tqdm import tqdm
 from PIL import Image
 
-# --- CONFIGURATION ---
 DATA_DIR = "data"
 BATCH_SIZE = 16
 
-# Liste des checkpoints (Assure-toi qu'ils existent)
 CHECKPOINTS = [f"chexpert_densenet_epoch_{i}.pth" for i in range(1, 16)]
 
-# --- MODIFICATION CRITIQUE : LES 5 CLASSES ---
 TARGET_COLS = [
     'Atelectasis',
     'Cardiomegaly',
@@ -35,7 +32,7 @@ def get_device():
 
 
 class CheXpertDenseNet(nn.Module):
-    def __init__(self, num_classes=5, pretrained=False):  # <--- 5 CLASSES
+    def __init__(self, num_classes=5, pretrained=False):
         super(CheXpertDenseNet, self).__init__()
         self.model = models.densenet121(weights=None)
         num_features = self.model.classifier.in_features
@@ -49,7 +46,7 @@ class CheXpertDataset(Dataset):
         self.dataframe = dataframe
         self.root_dir = root_dir
         self.transform = transform
-        self.label_cols = TARGET_COLS  # Utilise les 5 colonnes
+        self.label_cols = TARGET_COLS
 
     def __len__(self):
         return len(self.dataframe)
@@ -62,7 +59,6 @@ class CheXpertDataset(Dataset):
         except:
             return torch.zeros(3, 320, 320), torch.zeros(len(self.label_cols))
 
-        # Important : on ne charge que les valeurs des 5 colonnes cibles
         labels = torch.tensor(row[self.label_cols].values.astype(np.float32))
         if self.transform: image = self.transform(image)
         return image, labels
@@ -75,10 +71,7 @@ def get_clean_valid_dataframe(csv_path):
     if 'Path' in df.columns:
         df['Path'] = df['Path'].str.replace('CheXpert-v1.0-small', 'data', regex=False)
 
-    # Nettoyage standard pour la validation
     df[TARGET_COLS] = df[TARGET_COLS].fillna(0)
-    # Pour la validation (Ground Truth), on considère souvent Incertain comme Positif
-    # pour ne pas pénaliser le modèle s'il détecte quelque chose d'ambigu.
     df[TARGET_COLS] = df[TARGET_COLS].replace(-1, 1)
     return df
 
@@ -90,7 +83,7 @@ def test_model(model_path, dataloader, device):
     try:
         model.load_state_dict(torch.load(model_path, map_location=device, weights_only=True))
     except Exception as e:
-        print(f"⚠️ Erreur chargement : {e}")
+        print(f"Erreur chargement : {e}")
         return 0
 
     model.eval()
@@ -148,4 +141,4 @@ if __name__ == '__main__':
                 best_score = score
                 best_model = checkpoint
 
-    print(f"\n🥇 MEILLEUR : {best_model} (AUC: {best_score:.4f})")
+    print(f"\nMEILLEUR : {best_model} (AUC: {best_score:.4f})")

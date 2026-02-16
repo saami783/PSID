@@ -6,12 +6,10 @@ import pandas as pd
 import os
 import sys
 
-# --- CONFIGURATION ---
 MODEL_LUNGS_PATH = "models/tentative 5/model_lungs/model_lungs_epoch_8.pth"
 MODEL_CARDIO_PATH = "best_cardio_model.pth"
 VALID_CSV = "data/valid.csv"
 
-# Image par défaut
 DEFAULT_IMAGE = "data/valid/patient64545/study1/view1_frontal.jpg"
 # DEFAULT_IMAGE = "data/valid/patient64546/study1/view1_frontal.jpg"
 # DEFAULT_IMAGE = "data/valid/patient64548/study1/view1_frontal.jpg"
@@ -61,7 +59,7 @@ def load_model(path, num_classes, device):
 def get_ground_truth(image_path):
     """Cherche la vérité terrain dans le CSV"""
     if not os.path.exists(VALID_CSV):
-        print("❌ Fichier valid.csv introuvable.")
+        print("Fichier valid.csv introuvable.")
         return None
 
     df = pd.read_csv(VALID_CSV)
@@ -71,21 +69,20 @@ def get_ground_truth(image_path):
     # Le CSV est souvent "CheXpert-v1.0-small/valid/..."
     # On va comparer uniquement la fin : "patientXXXXX/studyX/viewX_frontal.jpg"
 
-    suffix = "/".join(image_path.split("/")[-3:])  # ex: patient64632/study1/view1_frontal.jpg
+    suffix = "/".join(image_path.split("/")[-3:])
 
-    # Recherche floue sur la fin du chemin
     row = df[df['Path'].str.contains(suffix, regex=False)]
 
     if row.empty:
-        print(f"⚠️ Image non trouvée dans le CSV : {suffix}")
+        print(f"⚠Image non trouvée dans le CSV : {suffix}")
         return None
 
-    return row.iloc[0]  # Retourne la ligne correspondante
+    return row.iloc[0]
 
 
 def check_truth(image_path):
     device = get_device()
-    print(f"\n--- 🕵️‍♂️ VÉRIFICATION VÉRITÉ TERRAIN ---")
+    print(f"\n--- VÉRIFICATION VÉRITÉ TERRAIN ---")
     print(f"Patient : {image_path.split('/')[-3]}")
 
     # 1. Récupérer la Vérité
@@ -123,7 +120,7 @@ def check_truth(image_path):
             predictions[CARDIO_TARGET[0]] = pred
 
     # 3. Comparaison et Affichage
-    print(f"\n📋 TABLEAU COMPARATIF")
+    print(f"\nTABLEAU COMPARATIF")
     print("-" * 85)
     print(f"{'PATHOLOGIE':<20} | {'IA (Proba)':<12} | {'IA (Diag)':<12} | {'MÉDECIN':<12} | {'VERDICT'}")
     print("-" * 85)
@@ -131,7 +128,7 @@ def check_truth(image_path):
     correct_count = 0
 
     for label in ALL_TARGETS:
-        # Données IA
+
         prob = predictions.get(label, 0.0)
         th = THRESHOLDS.get(label, 0.5)
         ia_sick = prob > th
@@ -142,20 +139,20 @@ def check_truth(image_path):
         doctor_sick = (real_val == 1.0)
 
         # Formatage affichage
-        ia_text = "DETECTÉ 🚨" if ia_sick else "Négatif"
-        doc_text = "MALADE 🤒" if doctor_sick else "Sain"
+        ia_text = "DETECTÉ" if ia_sick else "Négatif"
+        doc_text = "MALADE" if doctor_sick else "Sain"
 
         # Verdict (Comparaison)
         if ia_sick == doctor_sick:
-            verdict = "✅ CORRECT"
+            verdict = "CORRECT"
             color = "\033[92m"  # Vert
             correct_count += 1
         else:
             if ia_sick and not doctor_sick:
-                verdict = "⚠️ Faux Positif"  # L'IA s'inquiète pour rien
+                verdict = "Faux Positif"  # L'IA s'inquiète pour rien
                 color = "\033[93m"  # Jaune
             else:
-                verdict = "❌ RATÉ !"  # L'IA a raté une maladie
+                verdict = "RATÉ !"  # L'IA a raté une maladie
                 color = "\033[91m"  # Rouge
 
         reset = "\033[0m"
