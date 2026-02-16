@@ -3,7 +3,7 @@ Notre projet DeepCheX est une plateforme de diagnostic en ligne assistée par l'
 
 L'idée est qu'un radiologue puisse déposer une radiographie sur notre application afin de détecter ou non des pathologies cardio-respiratoires à partir de cette radiographie.
 
-Notre application ne doit pas se limiter à une simple classification binaire (Sain/Malade). Elle vise à identifier précisément la présence de pathologies.
+Notre application ne se limite pas à une simple classification binaire (Sain/Malade). Elle vise à identifier précisément la présence de pathologies.
 
 ## Fonctionnalités 
 - Dashboard avec 12 graphiques (démographie, panorama clinique, fiabilité/ bruit, métadonnées techniques).
