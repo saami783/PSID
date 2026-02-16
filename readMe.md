@@ -46,6 +46,5 @@ python app.py
 
 ### Accéder aux services
 - Dashboard : http://localhost:5173
-- API analytics : http://localhost:5050/api/analytics (ex. `/stats`, `/demographics`, `/pathologies`, `/cooccurrence`)
 - Interface IA : http://127.0.0.1:7860
 
