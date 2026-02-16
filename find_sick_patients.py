@@ -2,6 +2,7 @@ import pandas as pd
 import os
 
 # ce script permet de trouver des exemples de patients malades dans le dataset de validation
+# je l'utilise pour récupérer des radiographies et valider mes modèles sur Gradio à chaque fin d'entrainement
 CSV_PATH = "data/valid.csv"
 TARGETS = ['Atelectasis', 'Consolidation', 'Edema', 'Pleural Effusion', 'Cardiomegaly']
 

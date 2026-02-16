@@ -155,35 +155,28 @@ plt.show()
 sns.set_theme(style="whitegrid")
 plt.rcParams.update({'font.size': 12})
 
-# Chargement (à adapter selon votre chemin)
 try:
     df = pd.read_csv('../data/train.csv')
 except:
-    # Données factices pour l'exemple si fichier absent
     import numpy as np
     df = pd.DataFrame({
         'Frontal/Lateral': np.random.choice(['Frontal', 'Lateral', 'Unknown'], 1000, p=[0.8, 0.19, 0.01]),
         'AP/PA': np.random.choice(['AP', 'PA', 'LL', np.nan], 1000, p=[0.4, 0.4, 0.01, 0.19])
     })
 
-# Création d'une figure avec 2 sous-graphiques côte à côte
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
 
 # =============================================================================
 # GRAPHIQUE 6 : Frontal vs Lateral
 # =============================================================================
-# 1. Filtrage strict : on ne garde que 'Frontal' et 'Lateral'
 df_view = df[df['Frontal/Lateral'].isin(['Frontal', 'Lateral'])]
 
-# 2. Graphique
 sns.countplot(x='Frontal/Lateral', data=df_view, ax=ax1, palette='viridis', order=['Frontal', 'Lateral'])
 
-# 3. Esthétique
 ax1.set_title('Type de vue : Frontal vs Lateral', fontsize=14)
 ax1.set_xlabel('')
 ax1.set_ylabel("Nombre d'images")
 
-# Ajout des chiffres sur les barres
 for container in ax1.containers:
     ax1.bar_label(container, fontsize=11)
 
@@ -191,22 +184,16 @@ for container in ax1.containers:
 # =============================================================================
 # GRAPHIQUE 7 : Projection AP vs PA
 # =============================================================================
-# Note : AP/PA ne concerne généralement que les vues Frontales.
-# Les vues Latérales ont souvent un NaN ou rien ici.
 
-# 1. Filtrage strict : on ne garde que 'AP' et 'PA'
-# Cela élimine automatiquement les NaN, les LL, RL et les Lateral
+# 1. Filtrage strict : on ne garde que AP et PA
 df_proj = df[df['AP/PA'].isin(['AP', 'PA'])]
 
-# 2. Graphique
 sns.countplot(x='AP/PA', data=df_proj, ax=ax2, palette='mako', order=['AP', 'PA'])
 
-# 3. Esthétique
 ax2.set_title('Projection : Anteroposterior (AP) vs Posteroanterior (PA)', fontsize=14)
 ax2.set_xlabel('')
-ax2.set_ylabel('') # On enlève le label Y pour alléger car c'est la même échelle
+ax2.set_ylabel('')
 
-# Ajout des chiffres sur les barres
 for container in ax2.containers:
     ax2.bar_label(container, fontsize=11)
 
